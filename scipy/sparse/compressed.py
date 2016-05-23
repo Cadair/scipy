@@ -15,7 +15,7 @@ from .dia import dia_matrix
 from . import _sparsetools
 from .sputils import (upcast, upcast_char, to_native, isdense, isshape,
                       getdtype, isscalarlike, IndexMixin, get_index_dtype,
-                      downcast_intp_index)
+                      downcast_intp_index, get_sum_dtype)
 
 
 class _cs_matrix(_data_matrix, _minmax_mixin, IndexMixin):
@@ -553,27 +553,16 @@ class _cs_matrix(_data_matrix, _minmax_mixin, IndexMixin):
     # Reduce operations #
     #####################
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, dtype=None, out=None):
         """Sum the matrix over the given axis.  If the axis is None, sum
         over both rows and columns, returning a scalar.
         """
         # The spmatrix base class already does axis=0 and axis=1 efficiently
         # so we only do the case axis=None here
-        if axis is None:
-            return self.data.sum()
-        elif (not hasattr(self, 'blocksize') and
-              axis in self._swap(((1, -1), (0, 2)))[0]):
+        if (not hasattr(self, 'blocksize') and
+                    axis in self._swap(((1, -1), (0, 2)))[0]):
             # faster than multiplication for large minor axis in CSC/CSR
-            # Mimic numpy's casting.
-            if np.issubdtype(self.dtype, np.float_):
-                res_dtype = np.float_
-            elif (self.dtype.kind == 'u' and
-                  np.can_cast(self.dtype, np.uint)):
-                res_dtype = np.uint
-            elif np.can_cast(self.dtype, np.int_):
-                res_dtype = np.int_
-            else:
-                res_dtype = self.dtype
+            res_dtype = get_sum_dtype(self.dtype)
             ret = np.zeros(len(self.indptr) - 1, dtype=res_dtype)
 
             major_index, value = self._minor_reduce(np.add)
@@ -581,9 +570,17 @@ class _cs_matrix(_data_matrix, _minmax_mixin, IndexMixin):
             ret = np.asmatrix(ret)
             if axis % 2 == 1:
                 ret = ret.T
-            return ret
+
+            if out is not None and out.shape != ret.shape:
+                raise ValueError('dimensions do not match')
+
+            return ret.sum(axis=(), dtype=dtype, out=out)
+        # spmatrix will handle the remaining situations when axis
+        # is in {None, -1, 0, 1}
         else:
-            return spmatrix.sum(self, axis)
+            return spmatrix.sum(self, axis=axis, dtype=dtype, out=out)
+
+    sum.__doc__ = spmatrix.sum.__doc__
 
     def _minor_reduce(self, ufunc):
         """Reduce nonzeros with a ufunc over the minor axis when non-empty

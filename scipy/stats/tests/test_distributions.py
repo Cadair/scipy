@@ -2188,11 +2188,15 @@ def test_norm_logcdf():
                 -4613.48339520, -5005.52420869, -5413.56342187, -5837.60115548,
                 -6277.63751711, -6733.67260303]
 
-    olderr = np.seterr(divide='ignore')
-    try:
-        assert_allclose(stats.norm().logcdf(x), expected, atol=1e-8)
-    finally:
-        np.seterr(**olderr)
+    assert_allclose(stats.norm().logcdf(x), expected, atol=1e-8)
+
+    # also test the complex-valued code path
+    assert_allclose(stats.norm().logcdf(x + 1e-14j).real, expected, atol=1e-8)
+
+    # test the accuracy: d(logcdf)/dx = pdf / cdf \equiv exp(logpdf - logcdf)
+    deriv = (stats.norm.logcdf(x + 1e-10j)/1e-10).imag
+    deriv_expected = np.exp(stats.norm.logpdf(x) - stats.norm.logcdf(x))
+    assert_allclose(deriv, deriv_expected, atol=1e-10)
 
 
 def test_levy_cdf_ppf():
@@ -2591,6 +2595,49 @@ def test_genextreme_entropy():
     h = stats.genextreme.entropy(-10)
     assert_allclose(h, 11*euler_gamma + 1, rtol=1e-14)
 
+
+def test_genextreme_sf_isf():
+    # Expected values were computed using mpmath:
+    #
+    #    from sympy import mpmath
+    #
+    #    def mp_genextreme_sf(x, xi, mu=0, sigma=1):
+    #        # Formula from wikipedia, which has a sign convention for xi that
+    #        # is the opposite of scipy's shape parameter.
+    #        if xi != 0:
+    #            t = mpmath.power(1 + ((x - mu)/sigma)*xi, -1/xi)
+    #        else:
+    #            t = mpmath.exp(-(x - mu)/sigma)
+    #        return 1 - mpmath.exp(-t)
+    #
+    # >>> mpmath.mp.dps = 1000
+    # >>> s = mp_genextreme_sf(mpmath.mp.mpf("1e8"), mpmath.mp.mpf("0.125"))
+    # >>> float(s)
+    # 1.6777205262585625e-57
+    # >>> s = mp_genextreme_sf(mpmath.mp.mpf("7.98"), mpmath.mp.mpf("-0.125"))
+    # >>> float(s)
+    # 1.52587890625e-21
+    # >>> s = mp_genextreme_sf(mpmath.mp.mpf("7.98"), mpmath.mp.mpf("0"))
+    # >>> float(s)
+    # 0.00034218086528426593
+
+    x = 1e8
+    s = stats.genextreme.sf(x, -0.125)
+    assert_allclose(s, 1.6777205262585625e-57)
+    x2 = stats.genextreme.isf(s, -0.125)
+    assert_allclose(x2, x)
+
+    x = 7.98
+    s = stats.genextreme.sf(x, 0.125)
+    assert_allclose(s, 1.52587890625e-21)
+    x2 = stats.genextreme.isf(s, 0.125)
+    assert_allclose(x2, x)
+
+    x = 7.98
+    s = stats.genextreme.sf(x, 0)
+    assert_allclose(s, 0.00034218086528426593)
+    x2 = stats.genextreme.isf(s, 0)
+    assert_allclose(x2, x)
 
 if __name__ == "__main__":
     run_module_suite()

@@ -4355,17 +4355,37 @@ add_newdoc("scipy.special", "nctdtrit",
     """)
 
 add_newdoc("scipy.special", "ndtr",
-    """
+    r"""
     ndtr(x)
 
-    Gaussian cumulative distribution function
+    Gaussian cumulative distribution function.
 
     Returns the area under the standard Gaussian probability
-    density function, integrated from minus infinity to `x`::
+    density function, integrated from minus infinity to `x`
 
-        1/sqrt(2*pi) * integral(exp(-t**2 / 2), t=-inf..x)
+    .. math::
+
+       \frac{1}{\sqrt{2\pi}} \int_{-\infty}^x \exp(-t^2/2) dt
+
+    Parameters
+    ----------
+    x : array_like, real or complex
+        Argument
+
+    Returns
+    -------
+    ndarray
+        The value of the normal CDF evaluated at `x`
+
+    See Also
+    --------
+    erf
+    erfc
+    scipy.stats.norm
+    log_ndtr
 
     """)
+
 
 add_newdoc("scipy.special", "nrdtrimn",
     """
@@ -4423,12 +4443,30 @@ add_newdoc("scipy.special", "log_ndtr",
     """
     log_ndtr(x)
 
-    Logarithm of Gaussian cumulative distribution function
+    Logarithm of Gaussian cumulative distribution function.
 
     Returns the log of the area under the standard Gaussian probability
     density function, integrated from minus infinity to `x`::
 
         log(1/sqrt(2*pi) * integral(exp(-t**2 / 2), t=-inf..x))
+
+    Parameters
+    ----------
+    x : array_like, real or complex
+        Argument
+
+    Returns
+    -------
+    ndarray
+        The value of the log of the normal CDF evaluated at `x`
+
+    See Also
+    --------
+    erf
+    erfc
+    scipy.stats.norm
+    ndtr
+
     """)
 
 add_newdoc("scipy.special", "ndtri",
@@ -4827,12 +4865,48 @@ add_newdoc("scipy.special", "pseudo_huber",
 
 add_newdoc("scipy.special", "psi",
     """
-    psi(z)
+    psi(z, out=None)
 
-    Digamma function
+    The digamma function.
 
-    The derivative of the logarithm of the gamma function evaluated at
-    `z` (also called the digamma function).
+    The logarithmic derivative of the gamma function evaluated at ``z``.
+
+    Parameters
+    ----------
+    z : array_like
+        Real or complex argument.
+    out : ndarray, optional
+        Array for the computed values of ``psi``.
+
+    Returns
+    -------
+    digamma : ndarray
+        Computed values of ``psi``.
+
+    Notes
+    -----
+    For large values not close to the negative real axis ``psi`` is
+    computed using the asymptotic series (5.11.2) from [1]_. For small
+    arguments not close to the negative real axis the recurrence
+    relation (5.5.2) from [1]_ is used until the argument is large
+    enough to use the asymptotic series. For values close to the
+    negative real axis the reflection formula (5.5.4) from [1]_ is
+    used first.  Note that ``psi`` has a family of zeros on the
+    negative real axis which occur between the poles at nonpositive
+    integers. Around the zeros the reflection formula suffers from
+    cancellation and the implementation loses precision. The sole
+    positive zero and the first negative zero, however, are handled
+    separately by precomputing series expansions using [2]_, so the
+    function should maintain full accuracy around the origin.
+
+    References
+    ----------
+    .. [1] NIST Digital Library of Mathematical Functions
+           http://dlmf.nist.gov/5
+    .. [2] Fredrik Johansson and others.
+           "mpmath: a Python library for arbitrary-precision floating-point arithmetic"
+           (Version 0.19) http://mpmath.org/
+
     """)
 
 add_newdoc("scipy.special", "radian",
@@ -5373,24 +5447,11 @@ add_newdoc("scipy.special", "yve",
            http://netlib.org/amos/
     """)
 
-add_newdoc("scipy.special", "zeta",
+add_newdoc("scipy.special", "_zeta",
     """
-    zeta(x, q)
+    _zeta(x, q)
 
-    Hurwitz zeta function
-
-    The Riemann zeta function of two arguments (also known as the
-    Hurwitz zeta function).
-
-    This function is defined as
-
-    .. math:: \\zeta(x, q) = \\sum_{k=0}^{\\infty} 1 / (k+q)^x,
-
-    where ``x > 1`` and ``q > 0``.
-
-    See also
-    --------
-    zetac
+    Internal function, Hurwitz zeta.
 
     """)
 
@@ -5545,4 +5606,14 @@ add_newdoc("scipy.special", "loggamma",
     .. [hare1997] D.E.G. Hare,
       *Computing the Principal Branch of log-Gamma*,
       Journal of Algorithms, Volume 25, Issue 2, November 1997, pages 221-236.
+    """)
+
+add_newdoc("scipy.special", "_sinpi",
+    """
+    Internal function, do not use.
+    """)
+
+add_newdoc("scipy.special", "_cospi",
+    """
+    Internal function, do not use.
     """)

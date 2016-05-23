@@ -7,8 +7,6 @@ from __future__ import division, print_function, absolute_import
 import sys
 import time
 
-from distutils.version import LooseVersion
-
 import numpy as np
 from numpy.testing import dec, run_module_suite, assert_, assert_allclose
 from numpy import pi
@@ -16,7 +14,9 @@ from numpy import pi
 import scipy.special as sc
 from scipy._lib.six import reraise, with_metaclass
 from scipy._lib._testutils import knownfailure_overridable
-from scipy.special._testutils import FuncData, assert_func_equal
+from scipy.special._testutils import (MissingModule, check_version, FuncData,
+                                      assert_func_equal, DecoratorMeta)
+from scipy.special._ufuncs import _sinpi, _cospi
 
 try:
     import mpmath
@@ -24,21 +24,14 @@ except ImportError:
     try:
         import sympy.mpmath as mpmath
     except ImportError:
-        mpmath = None
-
-
-def mpmath_check(min_ver):
-    if mpmath is None:
-        return dec.skipif(True, "mpmath is not installed")
-    return dec.skipif(LooseVersion(mpmath.__version__) < LooseVersion(min_ver),
-                      "mpmath version >= %s required" % min_ver)
+        mpmath = MissingModule('mpmath')
 
 
 # ------------------------------------------------------------------------------
 # expi
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.10')
+@check_version(mpmath, '0.10')
 def test_expi_complex():
     dataset = []
     for r in np.logspace(-99, 2, 10):
@@ -54,7 +47,7 @@ def test_expi_complex():
 # ------------------------------------------------------------------------------
 
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_hyp0f1_gh5764():
     # Do a small and somewhat systematic test that runs quickly
     pts = []
@@ -69,7 +62,7 @@ def test_hyp0f1_gh5764():
     assert_allclose(res, std, atol=1e-13, rtol=1e-13)
 
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_hyp0f1_gh_1609():
     # this is a regression test for gh-1609
     vv = np.linspace(150, 180, 21)
@@ -82,7 +75,7 @@ def test_hyp0f1_gh_1609():
 # hyp2f1
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.14')
+@check_version(mpmath, '0.14')
 def test_hyp2f1_strange_points():
     pts = [
         (2, -1, -1, 0.7),
@@ -95,7 +88,7 @@ def test_hyp2f1_strange_points():
     FuncData(sc.hyp2f1, dataset, (0,1,2,3), 4, rtol=1e-10).check()
 
 
-@mpmath_check('0.13')
+@check_version(mpmath, '0.13')
 def test_hyp2f1_real_some_points():
     pts = [
         (1, 2, 3, 0),
@@ -130,7 +123,7 @@ def test_hyp2f1_real_some_points():
         np.seterr(**olderr)
 
 
-@mpmath_check('0.14')
+@check_version(mpmath, '0.14')
 def test_hyp2f1_some_points_2():
     # Taken from mpmath unit tests -- this point failed for mpmath 0.13 but
     # was fixed in their SVN since then
@@ -152,7 +145,7 @@ def test_hyp2f1_some_points_2():
     FuncData(sc.hyp2f1, dataset, (0,1,2,3), 4, rtol=1e-10).check()
 
 
-@mpmath_check('0.13')
+@check_version(mpmath, '0.13')
 def test_hyp2f1_real_some():
     dataset = []
     for a in [-10, -5, -1.8, 1.8, 5, 10]:
@@ -174,7 +167,7 @@ def test_hyp2f1_real_some():
         np.seterr(**olderr)
 
 
-@mpmath_check('0.12')
+@check_version(mpmath, '0.12')
 @dec.slow
 def test_hyp2f1_real_random():
     npoints = 500
@@ -203,7 +196,7 @@ def test_hyp2f1_real_random():
 # erf (complex)
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.14')
+@check_version(mpmath, '0.14')
 def test_erf_complex():
     # need to increase mpmath precision for this test
     old_dps, old_prec = mpmath.mp.dps, mpmath.mp.prec
@@ -225,7 +218,7 @@ def test_erf_complex():
 # lpmv
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.15')
+@check_version(mpmath, '0.15')
 def test_lpmv():
     pts = []
     for x in [-0.99, -0.557, 1e-6, 0.132, 1]:
@@ -284,7 +277,7 @@ def test_lpmv():
 # beta
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.15')
+@check_version(mpmath, '0.15')
 def test_beta():
     np.random.seed(1234)
 
@@ -323,13 +316,11 @@ def test_beta():
 # loggamma
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_loggamma_taylor1():
-    """
-    Make sure there isn't a big jump in accuracy when we move from
-    using the Taylor series to using the recurrence relation.
+    # Make sure there isn't a big jump in accuracy when we move from
+    # using the Taylor series to using the recurrence relation.
 
-    """
     pts = [-0.5, 0.5j, -0.5j, 0.5, 1 + 0.5j, 1 - 0.5j, 1.5, 2 - 0.5j,
            2 + 0.5j, 2.5]
     dataset = []
@@ -342,12 +333,10 @@ def test_loggamma_taylor1():
     FuncData(sc.loggamma, dataset, 0, 1, rtol=1e-13).check()
 
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_loggamma_taylor2():
-    """
-    Test around the zeros at z = 1, 2.
+    # Test around the zeros at z = 1, 2.
 
-    """
     dx = np.r_[-np.logspace(-1, -16, 10), np.logspace(-16, -1, 10)]
     dy = dx.copy()
     dx, dy = np.meshgrid(dx, dy)
@@ -365,14 +354,12 @@ def test_loggamma_taylor2():
 # rgamma
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_rgamma_zeros():
-    """
-    Test around the zeros at z = 0, -1, -2, ...,  -169. (After -169 we
-    get values that are out of floating point range even when we're
-    within 0.1 of the zero.)
+    # Test around the zeros at z = 0, -1, -2, ...,  -169. (After -169 we
+    # get values that are out of floating point range even when we're
+    # within 0.1 of the zero.)
 
-    """
     # Can't use too many points here or the test takes forever.
     dx = np.r_[-np.logspace(-1, -13, 3), 0, np.logspace(-13, -1, 3)]
     dy = dx.copy()
@@ -381,24 +368,115 @@ def test_rgamma_zeros():
     zeros = np.arange(0, -170, -1).reshape(1, 1, -1)
     z = (zeros + np.dstack((dz,)*zeros.size)).flatten()
     dataset = []
-    for z0 in z:
-        dataset.append((z0, complex(mpmath.rgamma(z0))))
+    with mpmath.workdps(100):
+        for z0 in z:
+            dataset.append((z0, complex(mpmath.rgamma(z0))))
 
     dataset = np.array(dataset)
     FuncData(sc.rgamma, dataset, 0, 1, rtol=1e-12).check()
 
 
 # ------------------------------------------------------------------------------
+# digamma
+# ------------------------------------------------------------------------------
+
+@check_version(mpmath, '0.19')
+def test_digamma_roots():
+    # Test the special-cased roots for digamma.
+    root = mpmath.findroot(mpmath.digamma, 1.5)
+    roots = [float(root)]
+    root = mpmath.findroot(mpmath.digamma, -0.5)
+    roots.append(float(root))
+    roots = np.array(roots)
+
+    # If we test beyond a radius of 0.24 mpmath will take forever.
+    dx = np.r_[-0.24, -np.logspace(-1, -15, 10), 0, np.logspace(-15, -1, 10), 0.24]
+    dy = dx.copy()
+    dx, dy = np.meshgrid(dx, dy)
+    dz = dx + 1j*dy
+    z = (roots + np.dstack((dz,)*roots.size)).flatten()
+    dataset = []
+    with mpmath.workdps(30):
+        for z0 in z:
+            dataset.append((z0, complex(mpmath.digamma(z0))))
+
+    dataset = np.array(dataset)
+    FuncData(sc.digamma, dataset, 0, 1, rtol=1e-14).check()
+
+
+@check_version(mpmath, '0.19')
+def test_digamma_negreal():
+    # Test digamma around the negative real axis. Don't do this in
+    # TestSystematic because the points need some jiggering so that
+    # mpmath doesn't take forever.
+
+    digamma = _exception_to_nan(mpmath.digamma)
+
+    x = -np.logspace(300, -30, 100)
+    y = np.r_[-np.logspace(0, -3, 5), 0, np.logspace(-3, 0, 5)]
+    x, y = np.meshgrid(x, y)
+    z = (x + 1j*y).flatten()
+
+    dataset = []
+    with mpmath.workdps(40):
+        for z0 in z:
+            res = digamma(z0)
+            dataset.append((z0, complex(res)))
+    dataset = np.asarray(dataset)
+
+    FuncData(sc.digamma, dataset, 0, 1, rtol=1e-13).check()
+
+
+@check_version(mpmath, '0.19')
+def test_digamma_boundary():
+    # Check that there isn't a jump in accuracy when we switch from
+    # using the asymptotic series to the reflection formula.
+
+    x = -np.logspace(300, -30, 100)
+    y = np.array([-6.1, -5.9, 5.9, 6.1])
+    x, y = np.meshgrid(x, y)
+    z = (x + 1j*y).flatten()
+
+    dataset = []
+    with mpmath.workdps(30):
+        for z0 in z:
+            res = mpmath.digamma(z0)
+            dataset.append((z0, complex(res)))
+    dataset = np.asarray(dataset)
+
+    FuncData(sc.digamma, dataset, 0, 1, rtol=1e-13).check()
+
+
+# ------------------------------------------------------------------------------
+# gammainc
+# ------------------------------------------------------------------------------
+
+@check_version(mpmath, '0.19')
+def test_gammainc_boundary():
+    # Test the transition to the asymptotic series.
+    small = 25
+    a = np.linspace(0.5*0.7*small, 2*1.3*small, 100)
+    x = a.copy()
+    a, x = np.meshgrid(a, x)
+    a, x = a.flatten(), x.flatten()
+    dataset = []
+    with mpmath.workdps(100):
+        for a0, x0 in zip(a, x):
+            dataset.append((a0, x0, float(mpmath.gammainc(a0, b=x0, regularized=True))))
+    dataset = np.array(dataset)
+
+    FuncData(sc.gammainc, dataset, (0, 1), 2, rtol=1e-12).check()
+
+
+# ------------------------------------------------------------------------------
 # spence
 # ------------------------------------------------------------------------------
 
-@mpmath_check('0.19')
+@check_version(mpmath, '0.19')
 def test_spence_circle():
-    """
-    The trickiest region for spence is around the circle |z - 1| = 1,
-    so test that region carefully.
+    # The trickiest region for spence is around the circle |z - 1| = 1,
+    # so test that region carefully.
 
-    """
     def spence(z):
         return complex(mpmath.polylog(2, 1 - z))
 
@@ -411,6 +489,44 @@ def test_spence_circle():
 
     dataset = np.array(dataset)
     FuncData(sc.spence, dataset, 0, 1, rtol=1e-14).check()
+
+
+# ------------------------------------------------------------------------------
+# sinpi and cospi
+# ------------------------------------------------------------------------------
+
+@check_version(mpmath, '0.19')
+def test_sinpi_zeros():
+    eps = np.finfo(float).eps
+    dx = np.r_[-np.logspace(0, -13, 3), 0, np.logspace(-13, 0, 3)]
+    dy = dx.copy()
+    dx, dy = np.meshgrid(dx, dy)
+    dz = dx + 1j*dy
+    zeros = np.arange(-100, 100, 1).reshape(1, 1, -1)
+    z = (zeros + np.dstack((dz,)*zeros.size)).flatten()
+    dataset = []
+    for z0 in z:
+        dataset.append((z0, complex(mpmath.sinpi(z0))))
+
+    dataset = np.array(dataset)
+    FuncData(_sinpi, dataset, 0, 1, rtol=2*eps).check()
+
+
+@check_version(mpmath, '0.19')
+def test_cospi_zeros():
+    eps = np.finfo(float).eps
+    dx = np.r_[-np.logspace(0, -13, 3), 0, np.logspace(-13, 0, 3)]
+    dy = dx.copy()
+    dx, dy = np.meshgrid(dx, dy)
+    dz = dx + 1j*dy
+    zeros = (np.arange(-100, 100, 1) + 0.5).reshape(1, 1, -1)
+    z = (zeros + np.dstack((dz,)*zeros.size)).flatten()
+    dataset = []
+    for z0 in z:
+        dataset.append((z0, complex(mpmath.cospi(z0))))
+
+    dataset = np.array(dataset)
+    FuncData(_cospi, dataset, 0, 1, rtol=2*eps).check()
 
 
 # ------------------------------------------------------------------------------
@@ -516,7 +632,7 @@ class IntArg(object):
 class MpmathData(object):
     def __init__(self, scipy_func, mpmath_func, arg_spec, name=None,
                  dps=None, prec=None, n=5000, rtol=1e-7, atol=1e-300,
-                 ignore_inf_sign=False):
+                 ignore_inf_sign=False, nan_ok=True, param_filter=None):
         self.scipy_func = scipy_func
         self.mpmath_func = mpmath_func
         self.arg_spec = arg_spec
@@ -526,6 +642,7 @@ class MpmathData(object):
         self.rtol = rtol
         self.atol = atol
         self.ignore_inf_sign = ignore_inf_sign
+        self.nan_ok = nan_ok
         if isinstance(self.arg_spec, np.ndarray):
             self.is_complex = np.issubdtype(self.arg_spec.dtype, np.complexfloating)
         else:
@@ -536,6 +653,7 @@ class MpmathData(object):
         if not name or name == '<lambda>':
             name = getattr(mpmath_func, '__name__', None)
         self.name = name
+        self.param_filter = param_filter
 
     def check(self):
         np.random.seed(1234)
@@ -594,7 +712,8 @@ class MpmathData(object):
                                       vectorized=False,
                                       rtol=self.rtol, atol=self.atol,
                                       ignore_inf_sign=self.ignore_inf_sign,
-                                      nan_ok=True)
+                                      nan_ok=self.nan_ok,
+                                      param_filter=self.param_filter)
                     break
                 except AssertionError:
                     if j >= len(dps_list)-1:
@@ -616,26 +735,6 @@ def assert_mpmath_equal(*a, **kw):
 
 def nonfunctional_tooslow(func):
     return dec.skipif(True, "    Test not yet functional (too slow), needs more work.")(func)
-
-
-class _SystematicMeta(type):
-    """
-    Metaclass which decorates all of the test_* methods with
-
-    - @mpmath_check(...)
-    - @dec.slow
-
-    """
-
-    mpmath_min_version = '0.17'
-
-    def __new__(cls, cls_name, bases, dct):
-        for name, item in list(dct.items()):
-            if name.startswith('test_'):
-                item = dec.slow(item)
-                item = mpmath_check(cls.mpmath_min_version)(item)
-                dct[name] = item
-        return type.__new__(cls, cls_name, bases, dct)
 
 
 # ------------------------------------------------------------------------------
@@ -752,7 +851,10 @@ def _inf_to_nan(func):
 HYPERKW = dict(maxprec=200, maxterms=200)
 
 
-class TestSystematic(with_metaclass(_SystematicMeta, object)):
+class TestSystematic(with_metaclass(DecoratorMeta, object)):
+    decorators = [(dec.slow, None),
+                  (check_version, (mpmath, '0.17'))]
+
     def test_airyai(self):
         # oscillating function, limit range
         assert_mpmath_equal(lambda z: sc.airy(z)[0],
@@ -1032,18 +1134,34 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             mpmath.ci,
                             [Arg(-1e8, 1e8)])
 
+    def test_cospi(self):
+        # Without the extra factor of 2 in the relative tolerance as
+        # compared to sinpi there will be one failure at ~0.318 with
+        # an rdiff of ~6e-16. Neither the Taylor series nor the system
+        # cosine are accurate enough here.
+        eps = np.finfo(float).eps
+        assert_mpmath_equal(_cospi, mpmath.cospi,
+                            [Arg()], rtol=4*eps)
+
+    def test_cospi_complex(self):
+        assert_mpmath_equal(_cospi, mpmath.cospi,
+                            [ComplexArg()], rtol=1e-13)
+
     def test_digamma(self):
         assert_mpmath_equal(sc.digamma,
                             _exception_to_nan(mpmath.digamma),
-                            [Arg()],
-                            dps=50)
+                            [Arg()], rtol=1e-12, dps=50)
 
-    @knownfailure_overridable()
     def test_digamma_complex(self):
+        # Test on a cut plane because mpmath will hang. See
+        # test_digamma_negreal for tests on the negative real axis.
+        def param_filter(z):
+            return np.where((z.real < 0) & (np.abs(z.imag) < 1.12), False, True)
+
         assert_mpmath_equal(sc.digamma,
-                            _time_limited()(_exception_to_nan(mpmath.digamma)),
-                            [ComplexArg()],
-                            n=200)
+                            _exception_to_nan(mpmath.digamma),
+                            [ComplexArg()], rtol=1e-13, dps=40,
+                            param_filter=param_filter)
 
     def test_e1(self):
         assert_mpmath_equal(sc.exp1,
@@ -1205,6 +1323,27 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             mpmath.erfi,
                             [ComplexArg()], n=200)
 
+    def test_ndtr(self):
+        assert_mpmath_equal(sc.ndtr,
+                            _exception_to_nan(lambda z: mpmath.ncdf(z)),
+                            [Arg()], n=200)
+
+    def test_ndtr_complex(self):
+        assert_mpmath_equal(sc.ndtr,
+                            lambda z: mpmath.erfc(-z/np.sqrt(2.))/2.,
+                            [ComplexArg(a=complex(-10000, -10000), b=complex(10000, 10000))], n=400)
+
+    def test_log_ndtr(self):
+        assert_mpmath_equal(sc.log_ndtr,
+                            _exception_to_nan(lambda z: mpmath.log(mpmath.ncdf(z))),
+                            [Arg()], n=600, dps=300)
+
+    def test_log_ndtr_complex(self):
+        assert_mpmath_equal(sc.log_ndtr,
+                            _exception_to_nan(lambda z: mpmath.log(mpmath.erfc(-z/np.sqrt(2.))/2.)),
+                            [ComplexArg(a=complex(-10000, -100),
+                                        b=complex(10000, 100))], n=200, dps=300)
+
     def test_eulernum(self):
         assert_mpmath_equal(lambda n: sc.euler(n)[-1],
                             mpmath.eulernum,
@@ -1240,12 +1379,26 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             _exception_to_nan(mpmath.gamma),
                             [ComplexArg()], rtol=1e-12)
 
-    @dec.knownfailureif(True, "BUG: special.gammainc(1e20, 1e20) never returns")
     def test_gammainc(self):
+        # Mpmath uses hypergeometric functions to evaluate gammainc
+        # and (as of version 0.19) does not provided a keyword to
+        # increase the number of terms used. As a result it raises
+        # exceptions on large arguments due to lack of
+        # convergence. Since the _exception_to_nan wrapper would just
+        # ignore bad values, we first test in the region where there
+        # are no exceptions.
+        assert_mpmath_equal(sc.gammainc,
+                            lambda z, b: mpmath.gammainc(z, b=b, regularized=True),
+                            [Arg(0, 1e4, inclusive_a=False), Arg(0, 1e4)],
+                            nan_ok=False, rtol=1e-11)
+        # Now add _exception_to_nan and go for broke. We still have to
+        # limit the range so that we don't have to use a crazy amount
+        # of precision.
         assert_mpmath_equal(sc.gammainc,
                             _exception_to_nan(
-                                lambda z, b: mpmath.gammainc(z, b=b)/mpmath.gamma(z)),
-                            [Arg(a=0), Arg(a=0)])
+                            lambda z, b: mpmath.gammainc(z, b=b, regularized=True)),
+                            [Arg(1e4, 1e100, inclusive_a=False), Arg(1e4, 1e100)],
+                            dps=100, rtol=1e-11)
 
     def test_gammaln(self):
         # The real part of loggamma is log(|gamma(z)|).
@@ -1708,6 +1861,15 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             mppoch,
                             [Arg(), Arg()],
                             dps=400)
+
+    def test_sinpi(self):
+        eps = np.finfo(float).eps
+        assert_mpmath_equal(_sinpi, mpmath.sinpi,
+                            [Arg()], rtol=2*eps)
+
+    def test_sinpi_complex(self):
+        assert_mpmath_equal(_sinpi, mpmath.sinpi,
+                            [ComplexArg()], rtol=2e-14)
 
     def test_shi(self):
         def shi(x):

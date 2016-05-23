@@ -866,9 +866,6 @@ def moment(a, moment=1, axis=0, nan_policy='propagate'):
         a = ma.masked_invalid(a)
         return mstats_basic.moment(a, moment, axis)
 
-    if contains_nan and nan_policy == 'propagate':
-        return np.nan
-
     if a.size == 0:
         # empty array, return nan(s) with shape matching `moment`
         if np.isscalar(moment):
@@ -971,9 +968,6 @@ def variation(a, axis=0, nan_policy='propagate'):
         a = ma.masked_invalid(a)
         return mstats_basic.variation(a, axis)
 
-    if contains_nan and nan_policy == 'propagate':
-        return np.nan
-
     return a.std(axis) / a.mean(axis)
 
 
@@ -1023,9 +1017,6 @@ def skew(a, axis=0, bias=True, nan_policy='propagate'):
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
         return mstats_basic.skew(a, axis, bias)
-
-    if contains_nan and nan_policy == 'propagate':
-        return np.nan
 
     m2 = moment(a, 2, axis)
     m3 = moment(a, 3, axis)
@@ -1097,9 +1088,6 @@ def kurtosis(a, axis=0, fisher=True, bias=True, nan_policy='propagate'):
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
         return mstats_basic.kurtosis(a, axis, fisher, bias)
-
-    if contains_nan and nan_policy == 'propagate':
-        return np.nan
 
     n = a.shape[axis]
     m2 = moment(a, 2, axis)
@@ -1197,10 +1185,6 @@ def describe(a, axis=0, ddof=1, bias=True, nan_policy='propagate'):
         a = ma.masked_invalid(a)
         return mstats_basic.describe(a, axis, ddof, bias)
 
-    if contains_nan and nan_policy == 'propagate':
-        res = np.zeros(6) * np.nan
-        return DescribeResult(*res)
-
     if a.size == 0:
         raise ValueError("The input must not be empty.")
     n = a.shape[axis]
@@ -1258,9 +1242,6 @@ def skewtest(a, axis=0, nan_policy='propagate'):
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
         return mstats_basic.skewtest(a, axis)
-
-    if contains_nan and nan_policy == 'propagate':
-        return SkewtestResult(np.nan, np.nan)
 
     if axis is None:
         a = np.ravel(a)
@@ -1330,9 +1311,6 @@ def kurtosistest(a, axis=0, nan_policy='propagate'):
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
         return mstats_basic.kurtosistest(a, axis)
-
-    if contains_nan and nan_policy == 'propagate':
-        return KurtosistestResult(np.nan, np.nan)
 
     n = float(a.shape[axis])
     if n < 5:
@@ -1412,9 +1390,6 @@ def normaltest(a, axis=0, nan_policy='propagate'):
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
         return mstats_basic.normaltest(a, axis)
-
-    if contains_nan and nan_policy == 'propagate':
-        return NormaltestResult(np.nan, np.nan)
 
     s, _ = skewtest(a, axis)
     k, _ = kurtosistest(a, axis)
@@ -2191,9 +2166,6 @@ def sem(a, axis=0, ddof=1, nan_policy='propagate'):
         a = ma.masked_invalid(a)
         return mstats_basic.sem(a, axis, ddof)
 
-    if contains_nan and nan_policy == 'propagate':
-        return np.nan
-
     n = a.shape[axis]
     s = np.std(a, axis=axis, ddof=ddof) / np.sqrt(n)
     return s
@@ -2764,8 +2736,10 @@ def pearsonr(x, y):
 
     Returns
     -------
-    (Pearson's correlation coefficient,
-     2-tailed p-value)
+    r : float
+        Pearson's correlation coefficient
+    p-value : float
+        2-tailed p-value
 
     References
     ----------
@@ -3066,9 +3040,6 @@ def spearmanr(a, b=None, axis=0, nan_policy='propagate'):
         b = ma.masked_invalid(b)
         return mstats_basic.spearmanr(a, b, axis)
 
-    if contains_nan and nan_policy == 'propagate':
-        return SpearmanrResult(np.nan, np.nan)
-
     if a.size <= 1:
         return SpearmanrResult(np.nan, np.nan)
     ar = np.apply_along_axis(rankdata, axisout, a)
@@ -3082,9 +3053,6 @@ def spearmanr(a, b=None, axis=0, nan_policy='propagate'):
         if contains_nan and nan_policy == 'omit':
             b = ma.masked_invalid(b)
             return mstats_basic.spearmanr(a, b, axis)
-
-        if contains_nan and nan_policy == 'propagate':
-            return SpearmanrResult(np.nan, np.nan)
 
         br = np.apply_along_axis(rankdata, axisout, b)
     n = a.shape[axisout]
@@ -3273,8 +3241,11 @@ def kendalltau(x, y, initial_lexsort=None, nan_policy='propagate'):
         return KendalltauResult(np.nan, np.nan)  # Return NaN if arrays are empty
 
     # check both x and y
-    contains_nan, nan_policy = (_contains_nan(x, nan_policy) or
-                                _contains_nan(y, nan_policy))
+    cnx, npx = _contains_nan(x, nan_policy)
+    cny, npy = _contains_nan(y, nan_policy)
+    contains_nan = cnx or cny
+    if npx == 'omit' or npy == 'omit':
+        nan_policy = 'omit'
 
     if contains_nan and nan_policy == 'propagate':
         return KendalltauResult(np.nan, np.nan)
@@ -3514,7 +3485,7 @@ def ttest_ind_from_stats(mean1, std1, nobs1, mean2, std2, nobs2,
 
 def ttest_ind(a, b, axis=0, equal_var=True, nan_policy='propagate'):
     """
-    Calculates the T-test for the means of TWO INDEPENDENT samples of scores.
+    Calculates the T-test for the means of *two independent* samples of scores.
 
     This is a two-sided test for the null hypothesis that 2 independent samples
     have identical average (expected) values. This test assumes that the
@@ -3533,6 +3504,7 @@ def ttest_ind(a, b, axis=0, equal_var=True, nan_policy='propagate'):
         that assumes equal population variances [1]_.
         If False, perform Welch's t-test, which does not assume equal
         population variance [2]_.
+
         .. versionadded:: 0.11.0
     nan_policy : {'propagate', 'raise', 'omit'}, optional
         Defines how to handle when input contains nan. 'propagate' returns nan,
@@ -3607,8 +3579,11 @@ def ttest_ind(a, b, axis=0, equal_var=True, nan_policy='propagate'):
     a, b, axis = _chk2_asarray(a, b, axis)
 
     # check both a and b
-    contains_nan, nan_policy = (_contains_nan(a, nan_policy) or
-                                _contains_nan(b, nan_policy))
+    cna, npa = _contains_nan(a, nan_policy)
+    cnb, npb = _contains_nan(b, nan_policy)
+    contains_nan = cna or cnb
+    if npa == 'omit' or npb == 'omit':
+        nan_policy = 'omit'
 
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
@@ -3695,13 +3670,19 @@ def ttest_rel(a, b, axis=0, nan_policy='propagate'):
     """
     a, b, axis = _chk2_asarray(a, b, axis)
 
-    # check both a and b
-    contains_nan, nan_policy = (_contains_nan(a, nan_policy) or
-                                _contains_nan(b, nan_policy))
+    cna, npa = _contains_nan(a, nan_policy)
+    cnb, npb = _contains_nan(b, nan_policy)
+    contains_nan = cna or cnb
+    if npa == 'omit' or npb == 'omit':
+        nan_policy = 'omit'
 
     if contains_nan and nan_policy == 'omit':
         a = ma.masked_invalid(a)
-        return mstats_basic.ttest_rel(a, b, axis)
+        b = ma.masked_invalid(b)
+        m = ma.mask_or(ma.getmask(a), ma.getmask(b))
+        aa = ma.array(a, mask=m, copy=True)
+        bb = ma.array(b, mask=m, copy=True)
+        return mstats_basic.ttest_rel(aa, bb, axis)
 
     if a.shape[axis] != b.shape[axis]:
         raise ValueError('unequal length arrays')
@@ -3870,8 +3851,7 @@ def kstest(rvs, cdf, args=(), N=20, alternative='two-sided', mode='approx'):
         if mode == 'approx':
             pval_two = distributions.kstwobign.sf(D * np.sqrt(N))
             if N > 2666 or pval_two > 0.80 - N*0.3/1000:
-                return KstestResult(D,
-                                    distributions.kstwobign.sf(D * np.sqrt(N)))
+                return KstestResult(D, pval_two)
             else:
                 return KstestResult(D, 2 * distributions.ksone.sf(D, N))
 
@@ -4373,7 +4353,7 @@ def tiecorrect(rankvals):
 
 MannwhitneyuResult = namedtuple('MannwhitneyuResult', ('statistic', 'pvalue'))
 
-def mannwhitneyu(x, y, use_continuity=True, alternative='two-sided'):
+def mannwhitneyu(x, y, use_continuity=True, alternative=None):
     """
     Computes the Mann-Whitney rank test on samples x and y.
 
@@ -4384,17 +4364,23 @@ def mannwhitneyu(x, y, use_continuity=True, alternative='two-sided'):
     use_continuity : bool, optional
             Whether a continuity correction (1/2.) should be taken into
             account. Default is True.
-    alternative : 'less', 'two-sided', or 'greater'
+    alternative : None (deprecated), 'less', 'two-sided', or 'greater'
             Whether to get the p-value for the one-sided hypothesis ('less'
-            or 'greater'), or for the two-sided hypothesis ('two-sided', is
-            the default)
+            or 'greater') or for the two-sided hypothesis ('two-sided').
+            Defaults to None, which results in a p-value half the size of
+            the 'two-sided' p-value and a different U statistic. The
+            default behavior is not the same as using 'less' or 'greater':
+            it only exists for backward compatibility and is deprecated.
 
     Returns
     -------
     statistic : float
-        The Mann-Whitney statistics.
+        The Mann-Whitney U statistic, equal to min(U for x, U for y) if
+        `alternative` is equal to None (deprecated; exists for backward
+        compatibility), and U for y otherwise.
     pvalue : float
-        One-sided p-value assuming a asymptotic normal distribution.
+        p-value assuming an asymptotic normal distribution. One-sided or
+        two-sided, depending on the choice of `alternative`.
 
     Notes
     -----
@@ -4406,6 +4392,10 @@ def mannwhitneyu(x, y, use_continuity=True, alternative='two-sided'):
     This test corrects for ties and by default uses a continuity correction.
 
     """
+    if alternative is None:
+        warnings.warn("Calling `mannwhitneyu` without specifying "
+                      "`alternative` is deprecated.", DeprecationWarning)
+
     x = np.asarray(x)
     y = np.asarray(y)
     n1 = len(x)
@@ -4416,27 +4406,35 @@ def mannwhitneyu(x, y, use_continuity=True, alternative='two-sided'):
     u2 = n1*n2 - u1  # remainder is U for y
     T = tiecorrect(ranked)
     if T == 0:
-        raise ValueError('All numbers are identical in amannwhitneyu')
+        raise ValueError('All numbers are identical in mannwhitneyu')
     sd = np.sqrt(T * n1 * n2 * (n1+n2+1) / 12.0)
 
-    fact2 = 1
-
     meanrank = n1*n2/2.0 + 0.5 * use_continuity
-    if alternative == 'less':
-        z = u1 - meanrank
-    elif alternative == 'greater':
-        z = u2 - meanrank
-    elif alternative == 'two-sided':
+    if alternative is None or alternative == 'two-sided':
         bigu = max(u1, u2)
-        z = np.abs(bigu - meanrank)
-        fact2 = 2.
+    elif alternative == 'less':
+        bigu = u1
+    elif alternative == 'greater':
+        bigu = u2
     else:
-        raise ValueError("alternative should be 'less', 'greater'"
+        raise ValueError("alternative should be None, 'less', 'greater' "
                          "or 'two-sided'")
 
-    z = z / sd
+    z = (bigu - meanrank) / sd
+    if alternative is None:
+        # This behavior, equal to half the size of the two-sided
+        # p-value, is deprecated.
+        p = distributions.norm.sf(abs(z))
+    elif alternative == 'two-sided':
+        p = 2 * distributions.norm.sf(abs(z))
+    else:
+        p = distributions.norm.sf(z)
 
-    return MannwhitneyuResult(u2, distributions.norm.sf(z) * fact2)
+    u = u2
+    # This behavior is deprecated.
+    if alternative is None:
+        u = min(u1, u2)
+    return MannwhitneyuResult(u, p)
 
 RanksumsResult = namedtuple('RanksumsResult', ('statistic', 'pvalue'))
 
